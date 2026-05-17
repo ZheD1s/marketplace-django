@@ -70,7 +70,7 @@ http://127.0.0.1:8000/swagger/
     "email": "example@example.com",
     "password": "1234"
 }
-
+``` 
 ---
 ## 🛒 Основные endpoints
 
