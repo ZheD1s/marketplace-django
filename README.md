@@ -71,9 +71,10 @@ http://127.0.0.1:8000/swagger/
     "password": "1234"
 }
 
-🛒 Основные endpoints
+---
+## 🛒 Основные endpoints
 
-Products
+### Products
 | Method | Endpoint            |
 | ------ | ------------------- |
 | GET    | /api/products/      |
@@ -82,7 +83,7 @@ Products
 | PATCH  | /api/products/{id}/ |
 | DELETE | /api/products/{id}/ |
 
-Cart
+### Cart
 | Method | Endpoint                   |
 | ------ | -------------------------- |
 | GET    | /api/products/cart/        |
@@ -91,7 +92,7 @@ Cart
 | DELETE | /api/products/cart/remove/ |
 | DELETE | /api/products/cart/clear/  |
 
-Orders
+### Orders
 | Method | Endpoint                          |
 | ------ | --------------------------------- |
 | POST   | /api/products/orders/create/      |
@@ -99,7 +100,7 @@ Orders
 | GET    | /api/products/orders/{id}/        |
 | PATCH  | /api/products/orders/{id}/status/ |
 
-▶️ Запуск проекта
+## ▶️ Запуск проекта
 1. Клонировать проект
 git clone <repo_url>
 
@@ -119,5 +120,5 @@ python manage.py migrate
 6. Запуск сервера
 python manage.py runserver
 
-👨‍💻 Автор
+### 👨‍💻 Автор
 Dias Zhetpisov
