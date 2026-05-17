@@ -3,9 +3,10 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Product, Cart, CartItem
-from .serializers import ProductSerializer, CartSerializer, CartItemSerializer
-from .permissions import IsOwnerOrReadOnly
+from django.db import transaction
+from .models import Product, Cart, CartItem, Order, OrderItem
+from .serializers import ProductSerializer, CartSerializer, CartItemSerializer, OrderSerializer
+from .permissions import IsOwnerOrReadOnly, IsOwner, IsAdmin
 from .filters import ProductFilter
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -162,3 +163,119 @@ class ClearCartView(APIView):
         cart.items.all().delete()
 
         return Response({"message": "The Cart has been cleared."})
+    
+class CreateOrderView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # Получаем корзину
+        try:
+            cart = Cart.objects.get(user=user)
+        except Cart.DoesNotExist:
+            return Response({"error": "Cart is empty"}, status=400)
+        
+        cart_items = cart.items.all()
+
+        if not cart_items:
+            return Response({"error": "Cart is empty"}, status=400)
+        
+        # Атомарность
+        with transaction.atomic():
+            order = Order.objects.create(user=user)
+
+            total_price = 0
+
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=item.product,
+                    quantity=item.quantity,
+                    price=item.product.price
+                )
+
+                total_price += item.product.price * item.quantity
+            
+            order.total_price = total_price
+            order.save()
+
+            # Очищаем корзину
+            cart.items.all().delete()
+        
+        return Response({"message": "Order created successfully"})
+
+# Список закаказов пользователя
+class OrderListView(generics.ListAPIView): 
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user)
+    
+# Просмотр одного заказа
+class OrderDetailView(generics.RetrieveAPIView):
+    serialiser_class = OrderSerializer
+    permission_classes = [IsAuthenticated, IsOwner]
+
+    def get_queryset(self):
+        return Order.objects.all()
+    
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+    
+class OrderDetailView(generics.RetrieveAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return Order.objects.none()
+
+        return Order.objects.filter(user=self.request.user)
+
+class UpdateOrderStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def patch(self, request, pk):
+        new_status = request.data.get("status")
+
+        try:
+            order = Order.objects.get(id=pk)
+        except Order.DoesNotExist:
+            return Response(
+                {"error": "Order not found"},
+                status=404
+            )
+        
+        valid_statuses = [choice[0] for choice in Order.STATUS_CHOICES]
+
+        if new_status not in valid_statuses:
+            return Response(
+                {"error": "Invalid status"},
+                status=400
+            )
+        
+        order.status = new_status
+        order.save()
+
+        return Response({
+            "message": "Status updated",
+            "status": order.status
+        })
+    
+class OrderListView(generics.ListAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.is_staff:
+            return Order.objects.all()
+        
+        return Order.objects.filter(user=user)
